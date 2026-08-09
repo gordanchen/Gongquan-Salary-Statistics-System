@@ -40,10 +40,10 @@
     enable: false
   },
 
-  serviceWorkerPath: "OneSignalSDKWorker.js",
+  serviceWorkerPath: "onesignal/OneSignalSDKWorker.js",
 
   serviceWorkerParam: {
-    scope: "/Gongquan-Salary-Statistics-System/"
+    scope: "/Gongquan-Salary-Statistics-System/onesignal/"
   }
 });
           os=OneSignal;ready=true;
