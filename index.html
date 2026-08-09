@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#06101a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="恭權薪資">
+  <meta name="format-detection" content="telephone=no">
+  <title>恭權薪資統計系統</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <div id="splash" class="splash" aria-live="polite">
+    <div class="splash-logo"><img src="./assets/logo.svg" alt="恭權薪資"></div>
+    <div class="splash-title">恭權薪資統計系統</div>
+    <div class="splash-sub">工時 × 薪資 × 支出管理</div>
+    <div class="splash-progress"><i></i></div>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <aside class="sidebar glass">
+      <div class="brand"><img src="./assets/logo.svg" alt=""><div><b>恭權薪資統計系統</b><small>工時 × 薪資 × 支出管理</small></div></div>
+      <nav class="side-nav">
+        <button class="active" data-page="home"><span>▦</span>總覽</button>
+        <button data-page="work"><span>◷</span>工時紀錄</button>
+        <button data-page="calendar"><span>▣</span>月曆視圖</button>
+        <button data-page="advance"><span>▤</span>預支管理</button>
+        <button data-page="budget"><span>▥</span>支出規劃</button>
+        <button data-page="stats"><span>▥</span>統計分析</button>
+        <button data-page="settings"><span>⚙</span>設定</button>
+      </nav>
+      <div class="sync-card">
+        <small>資料狀態</small>
+        <strong id="syncState"><i class="status-dot"></i>已同步</strong>
+        <span>最後同步 <b id="lastSync">--:--:--</b></span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><h1 id="greeting">早安 👋</h1><p id="todayText">—</p></div>
+        <div class="top-actions"><span id="workBadge" class="work-badge">未上班</span><button class="icon-btn" id="refreshBtn" title="重新整理">↻</button></div>
+      </header>
+
+      <section id="home" class="page active">
+        <div class="metric-grid">
+          <article class="metric-card income-card"><div class="metric-label">今日即時總收入</div><div class="metric-value green">$<span id="todayIncome">0.00</span></div><div id="perSecond" class="metric-sub green">+$0.0544 / 秒</div><div id="incomeSpark" class="spark"></div></article>
+          <article class="metric-card"><div class="metric-label">目前時段收入</div><div class="metric-value green small">$<span id="shiftIncome">0.00</span></div><div id="liveTimer" class="metric-timer">00:00:00</div><div class="mini-progress"><i id="shiftProgress"></i></div></article>
+          <article class="metric-card"><div class="metric-label">本月即時總收入</div><div class="metric-value purple small">$<span id="monthIncome">0.00</span></div><div id="goalText" class="metric-sub">目標 $30,000</div><div class="mini-progress purple-bar"><i id="goalProgress"></i></div></article>
+          <article class="metric-card"><div class="metric-label amber">預估可用（本月）</div><div class="metric-value amber small">$<span id="availableIncome">0</span></div><div id="deductText" class="metric-sub">收入 − 預支 − 支出</div><div class="mini-progress amber-bar"><i id="availableProgress"></i></div></article>
+          <article class="metric-card payday-card"><div class="metric-label purple">距離發薪日</div><div class="payday"><b id="paydayDays">—</b><span>天</span></div><div id="paydayDate" class="metric-sub">—</div></article>
+        </div>
+
+        <div class="home-grid">
+          <article class="panel flow-panel">
+            <div class="panel-head"><h2>今日打卡流程</h2><span id="breakHint" class="amber"></span></div>
+            <div id="timeline" class="timeline"></div>
+            <div id="breakStrip" class="break-strip hidden"><div><small>休息提醒</small><strong>休息至 <span id="breakUntil">--:--</span></strong></div><div class="break-track"><i id="breakBar"></i></div><div id="breakRemain" class="break-remain">--:--</div></div>
+          </article>
+          <article class="panel quick-panel">
+            <div class="panel-head"><h2>快速操作</h2></div>
+            <div class="clock-actions"><button id="clockInBtn" class="action big green-btn">▶ 上班打卡</button><button id="clockOutBtn" class="action big amber-btn">■ 下班打卡</button></div>
+            <div class="quick-grid"><button data-action="manual">▣<span>補登工時</span></button><button data-action="advance">◉<span>新增預支</span></button><button data-action="budget">▤<span>新增支出</span></button><button data-action="leave">☕<span>請假申請</span></button><button data-action="break">♟<span>休假登記</span></button><button data-page-jump="work">▣<span>查看紀錄</span></button></div>
+          </article>
+        </div>
+
+        <div class="lower-grid">
+          <article class="panel calendar-mini-panel"><div class="panel-head"><h2>月曆視圖</h2><div class="month-controls"><button id="homePrev">‹</button><b id="homeMonthTitle">—</b><button id="homeNext">›</button></div></div><div id="homeCalendar" class="calendar-grid"></div><div class="legend"><span><i class="green-dot"></i>上班</span><span><i class="amber-dot"></i>半天請假</span><span><i class="red-dot"></i>全天請假</span><span><i class="gray-dot"></i>休假</span></div></article>
+          <article class="panel today-detail"><div class="panel-head"><h2>今日詳細紀錄</h2><button class="pill-btn" data-action="editToday">編輯</button></div><div id="todayDetail"></div><div class="today-totals"><div><small>今日總工時</small><strong id="todayHours">0 小時 00 分</strong></div><div><small>今日薪資</small><strong class="green">$<span id="todayPayStatic">0.00</span></strong></div></div><div class="hourly">時薪 $<span id="hourlyRateLabel">196</span></div></article>
+          <article class="panel recent-panel"><div class="panel-head"><h2>近期紀錄</h2><button class="pill-btn" data-page-jump="advance">更多 ›</button></div><div class="tab-row"><button class="active" data-recent-tab="advance">預支紀錄</button><button data-recent-tab="budget">支出紀錄</button></div><div id="recentHomeList" class="compact-list"></div></article>
+        </div>
+      </section>
+
+      <section id="work" class="page"><div class="page-head"><div><h2>工時紀錄</h2><p>檢視、補登與調整上下班時間</p></div><button class="primary" data-action="manual">＋ 補登工時</button></div><div class="panel"><div id="workList" class="record-list"></div></div></section>
+      <section id="calendar" class="page"><div class="page-head"><div><h2>月曆視圖</h2><p>點日期查看完整出勤紀錄</p></div></div><div class="panel calendar-page"><div class="calendar-toolbar"><button id="prevMonth">‹</button><h3 id="monthTitle">—</h3><button id="nextMonth">›</button><button id="todayMonth" class="pill-btn">今天</button></div><div id="calendarGrid" class="calendar-grid large"></div><div class="legend"><span><i class="green-dot"></i>上班</span><span><i class="amber-dot"></i>半天請假</span><span><i class="red-dot"></i>全天請假</span><span><i class="gray-dot"></i>休假</span></div></div></section>
+      <section id="advance" class="page"><div class="page-head"><div><h2>預支管理</h2><p>預支會持續列入扣除，直到你自行刪除</p></div><button class="primary" data-action="advance">＋ 新增預支</button></div><div class="summary-row"><div class="summary-card"><small>預支總額</small><b class="red">-$<span id="advanceTotalPage">0</span></b></div><div class="summary-card"><small>預估可用</small><b class="green">$<span id="advanceAvailable">0</span></b></div></div><div class="panel"><div id="advanceList" class="record-list"></div></div></section>
+      <section id="budget" class="page"><div class="page-head"><div><h2>支出規劃</h2><p>房租、水電、車貸等項目不按月份歸零</p></div><button class="primary" data-action="budget">＋ 新增支出</button></div><div class="summary-row"><div class="summary-card"><small>支出規劃總額</small><b class="amber">-$<span id="budgetTotalPage">0</span></b></div><div class="summary-card"><small>未繳項目</small><b id="unpaidCount">0 筆</b></div></div><div class="panel"><div id="budgetList" class="record-list"></div></div></section>
+      <section id="stats" class="page"><div class="page-head"><div><h2>統計分析</h2><p id="statsMonth">—</p></div></div><div class="stats-cards"><div class="summary-card"><small>本月收入</small><b class="green" id="statIncome">$0</b></div><div class="summary-card"><small>總工時</small><b id="statHours">0 小時</b></div><div class="summary-card"><small>平均日薪</small><b id="statAvg">$0</b></div><div class="summary-card"><small>工作天數</small><b id="statDays">0 天</b></div></div><div class="stats-grid"><article class="panel"><div class="panel-head"><h2>收入趨勢</h2></div><div id="incomeChart" class="chart-area"></div></article><article class="panel"><div class="panel-head"><h2>出勤結構</h2></div><div id="attendanceStats" class="stats-list"></div></article></div><article class="panel"><div class="panel-head"><h2>每週統計</h2></div><div id="weeklyStats" class="record-list"></div></article></section>
+      <section id="settings" class="page"><div class="page-head"><div><h2>設定</h2><p>所有設定都可直接在 App 內調整</p></div></div>
+      <article class="panel notify-settings"><div class="panel-head"><div><h2>通知與提醒</h2><p id="notifySummary">工作、休息與下班提醒</p></div><span id="notifyStatus" class="notify-badge pending">檢查中</span></div><button id="openNotifyCenter" class="primary wide">管理通知與提醒</button></article>
+      <article class="panel form-panel"><div class="form-grid"><label>時薪<input id="setRate" type="number"></label><label>發薪日<input id="setPayday" type="number" min="1" max="28"></label><label>每月薪資目標<input id="setGoal" type="number"></label><label>自動同步秒數<input id="setSync" type="number" min="15"></label><label>預設休息分鐘<input id="setBreak" type="number"></label><label>排定上班時間<input id="setStart" type="time"></label><label>排定下班時間<input id="setEnd" type="time"></label></div><button id="saveSettings" class="primary wide">儲存設定</button></article></section>
+    </main>
+  </div>
+
+  <nav class="mobile-nav hidden" id="mobileNav"><button class="active" data-page="home">⌂<span>總覽</span></button><button data-page="work">◷<span>工時</span></button><button data-page="calendar">▣<span>月曆</span></button><button data-page="advance">▤<span>預支</span></button><button data-page="settings">⚙<span>更多</span></button></nav>
+
+  <div id="modal" class="modal"><div class="modal-card"><div class="modal-head"><h3 id="modalTitle">—</h3><button id="modalClose">×</button></div><div id="modalBody"></div></div></div>
+  <div id="busy" class="busy"><div class="busy-card"><div class="busy-logo"><img src="./assets/logo.svg" alt=""></div><h3 id="busyTitle">處理中…</h3><p id="busyText">請稍後</p></div></div>
+  <div id="toast" class="toast"></div>
+  <iframe name="gasBridge" id="gasBridge" class="api-bridge" title=""></iframe>
+
+  <script src="./js/config.js"></script>
+  <script src="./js/api.js"></script>
+  <script src="./js/notifications.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
