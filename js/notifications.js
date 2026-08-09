@@ -45,6 +45,17 @@
   serviceWorkerParam: {
     scope: "/Gongquan-Salary-Statistics-System/onesignal/"
   }
+
+            OneSignal.Debug.setLogLevel('trace');
+
+console.log('OneSignal permission:', OneSignal.Notifications.permission);
+console.log('OneSignal supported:', OneSignal.Notifications.isPushSupported());
+console.log('Push optedIn:', OneSignal.User?.PushSubscription?.optedIn);
+console.log('Subscription ID:', OneSignal.User?.PushSubscription?.id);
+console.log('OneSignal ID:', OneSignal.User?.onesignalId);
+
+OneSignal.User.PushSubscription.addEventListener('change', (event) => {
+  console.log('Push subscription changed:', event);
 });
           os=OneSignal;ready=true;
           OneSignal.User.PushSubscription.addEventListener('change', async ev=>{
