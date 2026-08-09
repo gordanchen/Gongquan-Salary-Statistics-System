@@ -15,87 +15,173 @@
     return GQ_API.call(action,payload,20000);
   }
 
-  async function loadSDK(){
-    const appId = String(window.GQ_CONFIG?.ONESIGNAL_APP_ID || '');
-    if(!appId || appId.includes('PASTE_YOUR')) return false;
-    if(document.querySelector('script[data-gq-onesignal]')) return new Promise(resolve => {
-      if(ready) return resolve(true);
-      const t=setInterval(()=>{if(ready){clearInterval(t);resolve(true)}},100);
-      setTimeout(()=>{clearInterval(t);resolve(ready)},8000);
-    });
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    const s=document.createElement('script');
-    s.src='https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
-    s.defer=true;s.dataset.gqOnesignal='1';document.head.appendChild(s);
-    return new Promise(resolve=>{
-      window.OneSignalDeferred.push(async function(OneSignal){
+async function loadSDK(){
+  const appId = String(
+    window.GQ_CONFIG?.ONESIGNAL_APP_ID || ''
+  );
+
+  if(!appId || appId.includes('PASTE_YOUR')){
+    return false;
+  }
+
+  window.OneSignalDeferred =
+    window.OneSignalDeferred || [];
+
+  // SDK 還沒載入才新增 script
+  if(!document.querySelector(
+    'script[data-gq-onesignal]'
+  )){
+    const s = document.createElement('script');
+
+    s.src =
+      'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+
+    s.defer = true;
+    s.dataset.gqOnesignal = '1';
+
+    document.head.appendChild(s);
+  }
+
+  // 已經成功初始化過
+  if(ready && os){
+    return true;
+  }
+
+  return new Promise(resolve => {
+    let finished = false;
+
+    const finish = value => {
+      if(finished) return;
+      finished = true;
+      resolve(value);
+    };
+
+    window.OneSignalDeferred.push(
+      async function(OneSignal){
+
         try{
-          const bp=basePath();
-       await OneSignal.init({
-  appId: window.GQ_CONFIG.ONESIGNAL_APP_ID,
 
-  safari_web_id: "web.onesignal.auto.1b5ff574-1f63-4acf-ab26-dadb313db610",
+          await OneSignal.init({
+            appId:
+              window.GQ_CONFIG.ONESIGNAL_APP_ID,
 
-  notifyButton: {
-    enable: false
-  },
+            safari_web_id:
+              'web.onesignal.auto.1b5ff574-1f63-4acf-ab26-dadb313db610',
 
-  serviceWorkerPath: "onesignal/OneSignalSDKWorker.js",
+            notifyButton: {
+              enable: false
+            },
 
-  serviceWorkerParam: {
-    scope: "/Gongquan-Salary-Statistics-System/onesignal/"
-  }
-});
+            serviceWorkerPath:
+              'onesignal/OneSignalSDKWorker.js',
 
-OneSignal.Debug.setLogLevel('trace');
-
-console.log(
-  'OneSignal permission:',
-  OneSignal.Notifications.permission
-);
-
-console.log(
-  'OneSignal supported:',
-  OneSignal.Notifications.isPushSupported()
-);
-
-console.log(
-  'Push optedIn:',
-  OneSignal.User?.PushSubscription?.optedIn
-);
-
-console.log(
-  'Subscription ID:',
-  OneSignal.User?.PushSubscription?.id
-);
-
-console.log(
-  'OneSignal ID:',
-  OneSignal.User?.onesignalId
-);
-
-OneSignal.User.PushSubscription.addEventListener(
-  'change',
-  (event) => {
-    console.log(
-      'Push subscription changed:',
-      event
-    );
-  }
-);
-          os=OneSignal;ready=true;
-          OneSignal.User.PushSubscription.addEventListener('change', async ev=>{
-            if(ev.current?.id && ev.current?.optedIn){
-              try{await api('registerPushDevice',{subscriptionId:ev.current.id,label:deviceLabel()})}catch(e){}
-              renderStatus();
+            serviceWorkerParam: {
+              scope:
+                '/Gongquan-Salary-Statistics-System/onesignal/'
             }
           });
-          resolve(true);
-        }catch(e){console.warn('Notification SDK init failed',e);resolve(false)}
-      });
-      setTimeout(()=>resolve(ready),8000);
-    });
-  }
+
+          // 先標記成功
+          os = OneSignal;
+          ready = true;
+
+          console.log(
+            'OneSignal 初始化完成'
+          );
+
+          console.log(
+            'Permission:',
+            OneSignal.Notifications.permission
+          );
+
+          console.log(
+            'Push supported:',
+            OneSignal.Notifications.isPushSupported()
+          );
+
+          console.log(
+            'Opted in:',
+            OneSignal.User
+              ?.PushSubscription
+              ?.optedIn
+          );
+
+          console.log(
+            'Subscription ID:',
+            OneSignal.User
+              ?.PushSubscription
+              ?.id
+          );
+
+          OneSignal.User.PushSubscription
+            .addEventListener(
+              'change',
+              async event => {
+
+                console.log(
+                  'Push subscription changed:',
+                  event
+                );
+
+                const sid =
+                  event?.current?.id || '';
+
+                if(
+                  sid &&
+                  event?.current?.optedIn
+                ){
+                  try{
+                    await api(
+                      'registerPushDevice',
+                      {
+                        subscriptionId: sid,
+                        label: deviceLabel()
+                      }
+                    );
+                  }catch(e){
+                    console.warn(
+                      'registerPushDevice failed',
+                      e
+                    );
+                  }
+                }
+
+                renderStatus();
+              }
+            );
+
+          finish(true);
+
+        }catch(e){
+
+          console.error(
+            'OneSignal 初始化失敗：',
+            e
+          );
+
+          // 讓下一次可以重新嘗試
+          ready = false;
+          os = null;
+
+          const oldScript =
+            document.querySelector(
+              'script[data-gq-onesignal]'
+            );
+
+          if(oldScript){
+            oldScript.remove();
+          }
+
+          finish(false);
+        }
+      }
+    );
+
+    setTimeout(()=>{
+      finish(ready && !!os);
+    },10000);
+  });
+}
 
   function deviceLabel(){
     if(isIOS()) return 'iPhone / iPad';
