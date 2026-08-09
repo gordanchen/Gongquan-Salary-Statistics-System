@@ -4,7 +4,7 @@
   const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const esc = v => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const DAYS = [['1','一'],['2','二'],['3','三'],['4','四'],['5','五'],['6','六'],['0','日']];
-  let ready = false, os = null, cfg = null, stateGetter = null;
+  let ready = false, os = null, cfg = null, stateGetter = null, sdkPromise = null;
 
   function basePath(){
     const p = location.pathname;
@@ -16,171 +16,89 @@
   }
 
 async function loadSDK(){
-  const appId = String(
-    window.GQ_CONFIG?.ONESIGNAL_APP_ID || ''
-  );
+  const appId = String(window.GQ_CONFIG?.ONESIGNAL_APP_ID || '');
+  if(!appId || appId.includes('PASTE_YOUR')) return false;
+  if(ready && os) return true;
+  if(sdkPromise) return sdkPromise;
 
-  if(!appId || appId.includes('PASTE_YOUR')){
-    return false;
-  }
-
-  window.OneSignalDeferred =
-    window.OneSignalDeferred || [];
-
-  // SDK 還沒載入才新增 script
-  if(!document.querySelector(
-    'script[data-gq-onesignal]'
-  )){
-    const s = document.createElement('script');
-
-    s.src =
-      'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
-
-    s.defer = true;
-    s.dataset.gqOnesignal = '1';
-
-    document.head.appendChild(s);
-  }
-
-  // 已經成功初始化過
-  if(ready && os){
-    return true;
-  }
-
-  return new Promise(resolve => {
-    let finished = false;
-
+  sdkPromise = new Promise(resolve => {
+    let settled = false;
     const finish = value => {
-      if(finished) return;
-      finished = true;
+      if(settled) return;
+      settled = true;
+      if(!value) sdkPromise = null;
       resolve(value);
     };
 
-    window.OneSignalDeferred.push(
-      async function(OneSignal){
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
 
-        try{
+    window.OneSignalDeferred.push(async function(OneSignal){
+      try{
+        await OneSignal.init({
+          appId: window.GQ_CONFIG.ONESIGNAL_APP_ID,
+          safari_web_id: 'web.onesignal.auto.1b5ff574-1f63-4acf-ab26-dadb313db610',
+          notifyButton: { enable: false },
 
-          await OneSignal.init({
-            appId:
-              window.GQ_CONFIG.ONESIGNAL_APP_ID,
-
-            safari_web_id:
-              'web.onesignal.auto.1b5ff574-1f63-4acf-ab26-dadb313db610',
-
-            notifyButton: {
-              enable: false
-            },
-
-            serviceWorkerPath:
-              'onesignal/OneSignalSDKWorker.js',
-
-            serviceWorkerParam: {
-              scope:
-                '/Gongquan-Salary-Statistics-System/onesignal/'
-            }
-          });
-
-          // 先標記成功
-          os = OneSignal;
-          ready = true;
-
-          console.log(
-            'OneSignal 初始化完成'
-          );
-
-          console.log(
-            'Permission:',
-            OneSignal.Notifications.permission
-          );
-
-          console.log(
-            'Push supported:',
-            OneSignal.Notifications.isPushSupported()
-          );
-
-          console.log(
-            'Opted in:',
-            OneSignal.User
-              ?.PushSubscription
-              ?.optedIn
-          );
-
-          console.log(
-            'Subscription ID:',
-            OneSignal.User
-              ?.PushSubscription
-              ?.id
-          );
-
-          OneSignal.User.PushSubscription
-            .addEventListener(
-              'change',
-              async event => {
-
-                console.log(
-                  'Push subscription changed:',
-                  event
-                );
-
-                const sid =
-                  event?.current?.id || '';
-
-                if(
-                  sid &&
-                  event?.current?.optedIn
-                ){
-                  try{
-                    await api(
-                      'registerPushDevice',
-                      {
-                        subscriptionId: sid,
-                        label: deviceLabel()
-                      }
-                    );
-                  }catch(e){
-                    console.warn(
-                      'registerPushDevice failed',
-                      e
-                    );
-                  }
-                }
-
-                renderStatus();
-              }
-            );
-
-          finish(true);
-
-        }catch(e){
-
-          console.error(
-            'OneSignal 初始化失敗：',
-            e
-          );
-
-          // 讓下一次可以重新嘗試
-          ready = false;
-          os = null;
-
-          const oldScript =
-            document.querySelector(
-              'script[data-gq-onesignal]'
-            );
-
-          if(oldScript){
-            oldScript.remove();
+          // GitHub Pages 專案位於子路徑，這裡使用絕對 pathname，避免相對路徑解析錯誤。
+          serviceWorkerPath: '/Gongquan-Salary-Statistics-System/onesignal/OneSignalSDKWorker.js',
+          serviceWorkerParam: {
+            scope: '/Gongquan-Salary-Statistics-System/onesignal/'
           }
+        });
 
-          finish(false);
+        os = OneSignal;
+        ready = true;
+
+        // 只綁一次 subscription change listener。
+        if(!window.__GQ_OS_SUB_CHANGE_BOUND__){
+          window.__GQ_OS_SUB_CHANGE_BOUND__ = true;
+          OneSignal.User.PushSubscription.addEventListener('change', async event => {
+            const sid = event?.current?.id || OneSignal.User?.PushSubscription?.id || '';
+            const optedIn = event?.current?.optedIn ?? OneSignal.User?.PushSubscription?.optedIn ?? false;
+
+            if(sid && optedIn){
+              try{
+                await api('registerPushDevice', {
+                  subscriptionId: sid,
+                  label: deviceLabel()
+                });
+              }catch(e){
+                console.warn('registerPushDevice failed', e);
+              }
+            }
+            renderStatus();
+          });
         }
-      }
-    );
 
-    setTimeout(()=>{
-      finish(ready && !!os);
-    },10000);
+        console.log('[GQ Notify] OneSignal initialized', {
+          permission: OneSignal.Notifications.permission,
+          supported: OneSignal.Notifications.isPushSupported(),
+          optedIn: OneSignal.User?.PushSubscription?.optedIn ?? false,
+          subscriptionId: OneSignal.User?.PushSubscription?.id || ''
+        });
+
+        finish(true);
+      }catch(e){
+        console.error('[GQ Notify] OneSignal init failed', e);
+        ready = false;
+        os = null;
+        finish(false);
+      }
+    });
+
+    if(!document.querySelector('script[data-gq-onesignal]')){
+      const s = document.createElement('script');
+      s.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+      s.defer = true;
+      s.dataset.gqOnesignal = '1';
+      s.onerror = () => finish(false);
+      document.head.appendChild(s);
+    }
+
+    setTimeout(() => finish(ready && !!os), 12000);
   });
+
+  return sdkPromise;
 }
 
   function deviceLabel(){
@@ -382,6 +300,28 @@ async function test(){
   }
 }
 
+  async function diagnostics(){
+    const ok = await loadSDK();
+    if(!ok){
+      return {
+        initialized:false,
+        supported:false,
+        permission:false,
+        optedIn:false,
+        subscriptionId:'',
+        oneSignalId:''
+      };
+    }
+    return {
+      initialized:true,
+      supported:!!os.Notifications.isPushSupported(),
+      permission:!!os.Notifications.permission,
+      optedIn:!!os.User?.PushSubscription?.optedIn,
+      subscriptionId:os.User?.PushSubscription?.id || '',
+      oneSignalId:os.User?.onesignalId || ''
+    };
+  }
+
   async function refreshConfig(){cfg=await api('getNotificationConfig');return cfg}
 
   function ruleTimeText(r){
@@ -436,5 +376,5 @@ async function test(){
 
   function showNotice(title,text){window.showModal(title,`<div class="notice">${esc(text)}</div><button class="primary wide" onclick="closeModal()">知道了</button>`)}
 
-  window.GQ_NOTIFICATIONS={init,openCenter,enable,test,renderStatus};
+  window.GQ_NOTIFICATIONS={init,openCenter,enable,test,renderStatus,diagnostics};
 })();
