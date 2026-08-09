@@ -32,10 +32,20 @@
         try{
           const bp=basePath();
           await OneSignal.init({
-            appId,
-            serviceWorkerPath:(bp+'push/onesignal/OneSignalSDKWorker.js').replace(/^\//,''),
-            serviceWorkerParam:{scope:bp+'push/onesignal/'}
-          });
+  appId: window.GQ_CONFIG.ONESIGNAL_APP_ID,
+
+  safari_web_id: "web.onesignal.auto.1b5ff574-1f63-4acf-ab26-dadb313db610",
+
+  notifyButton: {
+    enable: false
+  },
+
+  serviceWorkerPath: "push/onesignal/OneSignalSDKWorker.js",
+
+  serviceWorkerParam: {
+    scope: "/Gongquan-Salary-Statistics-System/push/onesignal/"
+  }
+});
           os=OneSignal;ready=true;
           OneSignal.User.PushSubscription.addEventListener('change', async ev=>{
             if(ev.current?.id && ev.current?.optedIn){
