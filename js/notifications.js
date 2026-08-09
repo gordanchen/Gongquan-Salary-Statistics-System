@@ -107,13 +107,15 @@
       await os.Notifications.requestPermission();
       if(!os.Notifications.permission) return showNotice('通知尚未開啟','你目前沒有允許通知。之後可到系統設定或 App 的通知中心重新開啟。');
       await os.User.PushSubscription.optIn();
-      let sid='';
-      for(let i=0;i<30;i++){
-        sid=os.User.PushSubscription.id||'';
-        if(sid) break;
-        await new Promise(r=>setTimeout(r,200));
-      }
-      if(!sid) throw new Error('尚未取得通知裝置識別碼，請稍後再試。');
+      
+      const sid = await waitForSubscriptionId(15000);
+
+if(!sid){
+  throw new Error(
+    '通知權限已開啟，但通知裝置仍在建立中，請稍後再試。'
+  );
+}
+      
       await api('registerPushDevice',{subscriptionId:sid,label:deviceLabel()});
       const welcomeKey='gq_notify_welcome_v1';
       if(!localStorage.getItem(welcomeKey)){
@@ -143,12 +145,119 @@
     try{await os.User.PushSubscription.optOut();renderStatus();openCenter()}catch(e){showNotice('無法關閉通知',e.message||String(e))}
   }
 
-  async function test(){
-    if(!ready||!os||!os.Notifications.permission) return enable();
-    const sid=os.User.PushSubscription.id;
-    if(!sid) return showNotice('尚未取得通知裝置','請稍後再試。');
-    try{await api('sendTestNotification',{subscriptionId:sid});window.toast?.('測試通知已送出')}catch(e){showNotice('測試通知失敗',e.message||String(e))}
+  async function waitForSubscriptionId(timeoutMs = 15000){
+  if(!ready || !os) return '';
+
+  const currentId = os.User?.PushSubscription?.id || '';
+  if(currentId) return currentId;
+
+  return new Promise(resolve => {
+    let finished = false;
+
+    const finish = (id='') => {
+      if(finished) return;
+      finished = true;
+
+      clearTimeout(timer);
+
+      try{
+        os.User.PushSubscription.removeEventListener('change', handler);
+      }catch(_){}
+
+      resolve(id || '');
+    };
+
+    const handler = event => {
+      const id =
+        event?.current?.id ||
+        os.User?.PushSubscription?.id ||
+        '';
+
+      if(id) finish(id);
+    };
+
+    try{
+      os.User.PushSubscription.addEventListener('change', handler);
+    }catch(_){}
+
+    const timer = setTimeout(() => {
+      finish(os.User?.PushSubscription?.id || '');
+    }, timeoutMs);
+  });
+}
+
+async function test(){
+  const ok = await loadSDK();
+
+  if(!ok){
+    return showNotice(
+      '通知服務尚未完成',
+      '通知服務目前無法初始化，請稍後再試。'
+    );
   }
+
+  if(isIOS() && !isStandalone()){
+    return showNotice(
+      '請從主畫面開啟',
+      'iPhone 請先將恭權薪資加入主畫面，再從主畫面的 App 開啟。'
+    );
+  }
+
+  try{
+    if(!os.Notifications.permission){
+      await os.Notifications.requestPermission();
+    }
+
+    if(!os.Notifications.permission){
+      return showNotice(
+        '通知權限尚未開啟',
+        '請先允許恭權薪資傳送通知。'
+      );
+    }
+
+    if(!os.User.PushSubscription.optedIn){
+      await os.User.PushSubscription.optIn();
+    }
+
+    window.showBusy?.(
+      '正在準備測試通知…',
+      '正在確認這台裝置的通知連線'
+    );
+
+    const sid = await waitForSubscriptionId(15000);
+
+    if(!sid){
+      window.hideBusy?.();
+
+      return showNotice(
+        '通知裝置尚未完成註冊',
+        '系統通知權限已開啟，但推播裝置仍在建立中。請關閉此視窗後約 10 秒再試一次。'
+      );
+    }
+
+    await api('registerPushDevice',{
+      subscriptionId:sid,
+      label:deviceLabel()
+    });
+
+    await api('sendTestNotification',{
+      subscriptionId:sid
+    });
+
+    window.hideBusy?.();
+    window.toast?.('測試通知已送出');
+
+    renderStatus();
+
+  }catch(e){
+    window.hideBusy?.();
+
+    showNotice(
+      '測試通知失敗',
+      e.message || String(e)
+    );
+  }
+}
 
   async function refreshConfig(){cfg=await api('getNotificationConfig');return cfg}
 
