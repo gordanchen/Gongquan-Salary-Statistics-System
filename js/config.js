@@ -1,5 +1,5 @@
 window.GQ_CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbwVJShrBV42X8nD775xFf9rdZabpNEAHy2ZeUJApqbi_8tQiTaDoHKJ4JXv6P4yNmE/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbx9Cs9WGwfVYgYTU3pDwQuhhtp83iA5_uW0xID3XR4oEfzcIttN45PdW0PNEn7LDz3m/exec',
 
   APP_NAME: '恭權薪資統計系統',
 
