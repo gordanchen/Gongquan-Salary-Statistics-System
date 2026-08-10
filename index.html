@@ -28,7 +28,6 @@
       <nav class="side-nav">
         <button class="active" data-page="home"><span>▦</span>總覽</button>
         <button data-page="work"><span>◷</span>工時紀錄</button>
-        <button data-page="calendar"><span>▣</span>月曆視圖</button>
         <button data-page="advance"><span>▤</span>預支管理</button>
         <button data-page="budget"><span>▥</span>支出規劃</button>
         <button data-page="stats"><span>▥</span>統計分析</button>
@@ -76,8 +75,7 @@
         </div>
       </section>
 
-      <section id="work" class="page"><div class="page-head"><div><h2>工時紀錄</h2><p>檢視、補登與調整上下班時間</p></div><button class="primary" data-action="manual">＋ 補登工時</button></div><div class="panel"><div id="workList" class="record-list"></div></div></section>
-      <section id="calendar" class="page"><div class="page-head"><div><h2>月曆視圖</h2><p>點日期查看完整出勤紀錄</p></div></div><div class="panel calendar-page"><div class="calendar-toolbar"><button id="prevMonth">‹</button><h3 id="monthTitle">—</h3><button id="nextMonth">›</button><button id="todayMonth" class="pill-btn">今天</button></div><div id="calendarGrid" class="calendar-grid large"></div><div class="legend"><span><i class="green-dot"></i>上班</span><span><i class="amber-dot"></i>半天請假</span><span><i class="red-dot"></i>全天請假</span><span><i class="gray-dot"></i>休假</span></div></div></section>
+      <section id="work" class="page"><div class="page-head"><div><h2>工時紀錄</h2><p>月曆與整月每日工時合併顯示</p></div><button class="primary" data-action="manual">＋ 補登工時</button></div><div class="panel calendar-page work-calendar"><div class="calendar-toolbar"><button id="prevMonth">‹</button><h3 id="monthTitle">—</h3><button id="nextMonth">›</button><button id="todayMonth" class="pill-btn">今天</button></div><div id="calendarGrid" class="calendar-grid large"></div><div class="legend"><span><i class="green-dot"></i>上班</span><span><i class="amber-dot"></i>半天請假</span><span><i class="red-dot"></i>全天請假</span><span><i class="gray-dot"></i>休假</span></div></div><div class="section-divider"><b>本月每日工時</b><small>顯示原始打卡時間與有效計薪工時</small></div><div class="panel"><div id="workList" class="record-list work-month-list"></div></div></section>
       <section id="advance" class="page"><div class="page-head"><div><h2>預支管理</h2><p>預支會持續列入扣除，直到你自行刪除</p></div><button class="primary" data-action="advance">＋ 新增預支</button></div><div class="summary-row"><div class="summary-card"><small>預支總額</small><b class="red">-$<span id="advanceTotalPage">0</span></b></div><div class="summary-card"><small>預估可用</small><b class="green">$<span id="advanceAvailable">0</span></b></div></div><div class="panel"><div id="advanceList" class="record-list"></div></div></section>
       <section id="budget" class="page"><div class="page-head"><div><h2>支出規劃</h2><p>房租、水電、車貸等項目不按月份歸零</p></div><button class="primary" data-action="budget">＋ 新增支出</button></div><div class="summary-row"><div class="summary-card"><small>支出規劃總額</small><b class="amber">-$<span id="budgetTotalPage">0</span></b></div><div class="summary-card"><small>未繳項目</small><b id="unpaidCount">0 筆</b></div></div><div class="panel"><div id="budgetList" class="record-list"></div></div></section>
       <section id="stats" class="page"><div class="page-head"><div><h2>統計分析</h2><p id="statsMonth">—</p></div></div><div class="stats-cards"><div class="summary-card"><small>本月收入</small><b class="green" id="statIncome">$0</b></div><div class="summary-card"><small>總工時</small><b id="statHours">0 小時</b></div><div class="summary-card"><small>平均日薪</small><b id="statAvg">$0</b></div><div class="summary-card"><small>工作天數</small><b id="statDays">0 天</b></div></div><div class="stats-grid"><article class="panel"><div class="panel-head"><h2>收入趨勢</h2></div><div id="incomeChart" class="chart-area"></div></article><article class="panel"><div class="panel-head"><h2>出勤結構</h2></div><div id="attendanceStats" class="stats-list"></div></article></div><article class="panel"><div class="panel-head"><h2>每週統計</h2></div><div id="weeklyStats" class="record-list"></div></article></section>
@@ -87,7 +85,7 @@
     </main>
   </div>
 
-  <nav class="mobile-nav hidden" id="mobileNav"><button class="active" data-page="home">⌂<span>總覽</span></button><button data-page="work">◷<span>工時</span></button><button data-page="calendar">▣<span>月曆</span></button><button data-page="advance">▤<span>預支</span></button><button data-page="settings">⚙<span>更多</span></button></nav>
+  <nav class="mobile-nav hidden" id="mobileNav"><button class="active" data-page="home">⌂<span>總覽</span></button><button data-page="work">◷<span>工時/月曆</span></button><button data-page="advance">▤<span>預支</span></button><button data-page="stats">▥<span>統計</span></button><button data-page="settings">⚙<span>更多</span></button></nav>
 
   <div id="modal" class="modal"><div class="modal-card"><div class="modal-head"><h3 id="modalTitle">—</h3><button id="modalClose">×</button></div><div id="modalBody"></div></div></div>
   <div id="busy" class="busy"><div class="busy-card"><div class="busy-logo"><img src="./assets/logo.svg" alt=""></div><h3 id="busyTitle">處理中…</h3><p id="busyText">請稍後</p></div></div>
