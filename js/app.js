@@ -13,17 +13,25 @@ function activeShift(log){if(log?.amStart&&!log.amEnd&&log.amStatus!=='請假')r
 function timeMin(t){const p=String(t||'').slice(0,5).split(':').map(Number);return p.length===2&&p.every(Number.isFinite)?p[0]*60+p[1]:0}
 function effectiveLiveSeconds(log){
   const a=activeShift(log);if(!a||!state.data)return 0;
-  const settings=state.data.settings||{},dayStart=timeMin(settings.scheduledStart||'11:00'),dayEnd=timeMin(settings.scheduledEnd||'18:00');
+  const floorHour=m=>Math.floor(m/60)*60;
+  const nearestHour=m=>Math.floor((m+30)/60)*60;
   const n=now(),nowMin=n.getHours()*60+n.getMinutes()+n.getSeconds()/60;
+  let from=0;
+
   if(a.name==='上午'){
-    const from=dayStart,to=Math.min(dayEnd,nowMin);
-    return Math.max(0,Math.floor((to-from)*60));
+    // 10:55→11:00；11:05→11:00；12:50→13:00
+    from=nearestHour(timeMin(log.amStart));
+  }else{
+    const breakMinutes=Math.max(0,Number(log.breakMinutes||0));
+    if(log.amEnd && breakMinutes>0){
+      // 固定休息分鐘以「上午有效下班整點」為基準，不受實際下午回班早晚影響。
+      from=floorHour(timeMin(log.amEnd))+breakMinutes;
+    }else{
+      from=nearestHour(timeMin(log.pmStart));
+    }
   }
-  let from;
-  if(log.breakEnd)from=timeMin(log.breakEnd);
-  else from=Math.floor(timeMin(log.pmStart)/60)*60;
-  const to=Math.min(dayEnd,nowMin);
-  return Math.max(0,Math.floor((to-from)*60));
+
+  return Math.max(0,Math.floor((nowMin-from)*60));
 }
 function elapsed(log){return effectiveLiveSeconds(log)}
 function totals(){const d=state.data;if(!d)return{sec:0,live:0,today:0,month:0,adv:0,bud:0,available:0};const sec=effectiveLiveSeconds(d.today),live=sec*d.settings.hourlyRate/3600,base=d.monthLogs.reduce((s,r)=>s+Number(r.pay||0),0),adv=(d.monthAdvances||[]).reduce((s,r)=>s+Number(r.amount||0),0),bud=(d.monthBudgets||[]).reduce((s,r)=>s+Number(r.amount||0),0),today=Number(d.today.pay||0)+live,month=base+live;return{sec,live,today,month,adv,bud,available:month-adv-bud}}
