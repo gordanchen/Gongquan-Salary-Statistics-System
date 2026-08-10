@@ -1,4 +1,4 @@
-const CACHE = 'gongquan-salary-v10-notify-stable';
+const CACHE = 'gongquan-salary-v11-pay-notify-workcalendar';
 
 const CORE = [
   './',
