@@ -300,6 +300,50 @@ async function test(){
   }
 }
 
+  async function notifyPayMilestone(amount){
+    const value=Math.floor(Number(amount||0)/200)*200;
+    if(value<200) return;
+    try{ await api('sendPayMilestoneNotification',{amount:value}); }catch(e){ console.warn('milestone push failed',e); }
+  }
+
+  function temporaryListHTML(){
+    const items=cfg?.temporary||[];
+    if(!items.length) return '<div class="notice">目前沒有臨時提醒。</div>';
+    return items.map(x=>`<div class="record-item"><div><b>${esc(String(x.sendAt||'').replace('T',' '))}</b><small>${esc(x.message||'')}</small></div><button class="pill-btn" data-temp-delete="${esc(x.id)}">刪除</button></div>`).join('');
+  }
+
+  function bindTemporaryButtons(){
+    document.querySelectorAll('[data-temp-delete]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('刪除此臨時提醒？'))return;
+      try{
+        window.showBusy?.('正在刪除臨時提醒…','同步取消尚未發送的通知');
+        const r=await api('deleteTemporaryNotification',{id:b.dataset.tempDelete});
+        if(cfg)cfg.temporary=r.temporary||[];
+        window.hideBusy?.();window.toast?.('臨時提醒已刪除');openCenter();
+      }catch(e){window.hideBusy?.();showNotice('刪除失敗',e.message||String(e))}
+    });
+  }
+
+  function openTemporaryForm(){
+    const n=new Date(Date.now()+5*60000);
+    const date=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+    const time=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+    window.showModal('新增臨時提醒',`<div class="modal-form">
+      <div class="notice">只提醒這一次。可以建立多筆；尚未發送前可刪除。</div>
+      <div class="two"><label class="form-field">日期<input id="tempDate" type="date" value="${date}"></label><label class="form-field">時間<input id="tempTime" type="time" value="${time}"></label></div>
+      <label class="form-field">提醒內容<textarea id="tempMessage" rows="4" placeholder="例如：17:20 記得帶資料回家"></textarea></label>
+      <button id="saveTempNotify" class="primary wide">建立一次性提醒</button>
+    </div>`);
+    $('saveTempNotify').onclick=async()=>{
+      try{
+        window.showBusy?.('正在建立臨時提醒…','安排一次性推播通知');
+        const r=await api('saveTemporaryNotification',{date:$('tempDate').value,time:$('tempTime').value,message:$('tempMessage').value});
+        if(cfg)cfg.temporary=r.temporary||[];
+        window.hideBusy?.();window.toast?.('臨時提醒已建立');openCenter();
+      }catch(e){window.hideBusy?.();showNotice('建立失敗',e.message||String(e))}
+    };
+  }
+
   async function diagnostics(){
     const ok = await loadSDK();
     if(!ok){
@@ -342,11 +386,15 @@ async function test(){
       </div>
       ${p.permission&&p.optedIn?'<button id="notifyTest" class="pill-btn wide">傳送測試通知</button>':''}
       <div class="notify-rule-list">${rules.map(r=>`<button class="notify-rule" data-rule="${esc(r.id)}"><span class="notify-rule-icon">${r.icon||'🔔'}</span><span><b>${esc(r.name)}</b><small>${dayText(r)}・${ruleTimeText(r)}</small></span><i class="${r.enabled?'on':'off'}">${r.enabled?'開啟':'關閉'}</i></button>`).join('')}</div>
-      <div class="notice">提醒文案會從每組 4～6 句中隨機選擇；隨機時段也會每天重新抽選。休息提醒則依你實際設定的休息時間自動計算。</div>
+      <div class="notify-section-head"><b>臨時提醒</b><button id="addTempNotify" class="pill-btn">＋ 新增</button></div>
+      <div class="notify-temp-list">${temporaryListHTML()}</div>
+      <div class="notice">固定提醒會依當日出勤狀態自動安排；臨時提醒只發送一次。休息提醒依你實際設定的休息分鐘自動計算。</div>
     </div>`);
     $('notifyToggle').onclick=()=>p.permission&&p.optedIn?disable():enable();
     if($('notifyTest'))$('notifyTest').onclick=test;
     document.querySelectorAll('[data-rule]').forEach(b=>b.onclick=()=>editRule(b.dataset.rule));
+    if($('addTempNotify'))$('addTempNotify').onclick=openTemporaryForm;
+    bindTemporaryButtons();
   }
 
   function editRule(id){
@@ -376,5 +424,5 @@ async function test(){
 
   function showNotice(title,text){window.showModal(title,`<div class="notice">${esc(text)}</div><button class="primary wide" onclick="closeModal()">知道了</button>`)}
 
-  window.GQ_NOTIFICATIONS={init,openCenter,enable,test,renderStatus,diagnostics};
+  window.GQ_NOTIFICATIONS={init,openCenter,enable,test,renderStatus,diagnostics,notifyPayMilestone};
 })();
