@@ -38,6 +38,14 @@ function totals(){const d=state.data;if(!d)return{sec:0,live:0,today:0,month:0,a
 function status(log){const a=activeShift(log);if(a)return{txt:`工作中・${a.name}`,live:true};if(log?.dayStatus==='全天請假')return{txt:'全天請假'};if(log?.dayStatus==='休假')return{txt:'今日休假'};if(log?.amStart&&log.amEnd&&log.pmStart&&log.pmEnd)return{txt:'今日完成'};if(log?.amEnd&&!log.pmStart)return{txt:'休息中'};return{txt:'未上班'}}
 function nextAction(log){if(['全天請假','休假'].includes(log.dayStatus))return'none';if(!log.amStart&&log.amStatus!=='請假')return'am-in';if(!log.amEnd&&log.amStatus!=='請假')return'am-out';if(!log.pmStart&&log.pmStatus!=='請假')return'pm-in';if(!log.pmEnd&&log.pmStatus!=='請假')return'pm-out';return'none'}
 function greeting(){const h=now().getHours();return h<11?'早安 👋':h<17?'午安 👋':'晚安 👋'}
+function launchSalaryLiveShortcut(command='start'){
+  // 只在 iPhone / iPad 上嘗試呼叫 Apple 捷徑；其他裝置完全不受影響。
+  if(!/iPhone|iPad|iPod/i.test(navigator.userAgent))return;
+  const name='恭權薪資Live';
+  const url='shortcuts://run-shortcut?name='+encodeURIComponent(name)+'&input=text&text='+encodeURIComponent(command);
+  // 打卡 API 已成功後才呼叫，避免資料尚未寫入就先啟動 Live Activity。
+  setTimeout(()=>{window.location.href=url},120);
+}
 function paydayInfo(){const d=state.data.settings.payday,n=now(),p=new Date(n.getFullYear(),n.getMonth(),d);if(n.getDate()>=d)p.setMonth(p.getMonth()+1);const base=new Date(n.getFullYear(),n.getMonth(),n.getDate());return{days:Math.ceil((p-base)/86400000),date:`${p.getMonth()+1}/${p.getDate()} 發薪`}}
 
 function setSync(label,ok=true){$('syncState').innerHTML=`<i class="status-dot"></i>${label}`;$('syncState').style.color=ok?'var(--green)':'var(--red)';$('lastSync').textContent=new Date().toLocaleTimeString('zh-TW',{hour12:false})}
@@ -130,7 +138,28 @@ function bindNav(){
 function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));window.scrollTo({top:0,behavior:'smooth'})}
 function bindActions(){$('refreshBtn').onclick=refreshAll;$('clockInBtn').onclick=clock;$('clockOutBtn').onclick=clock;$('modalClose').onclick=closeModal;$('modal').onclick=e=>{if(e.target===$('modal'))closeModal()};document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>openAction(b.dataset.action));$('saveSettings').onclick=saveSettings;$('openNotifyCenter').onclick=()=>window.GQ_NOTIFICATIONS?.openCenter()}
 
-async function clock(){const n=nextAction(state.data.today);if(n==='none')return;try{const r=await call('clockAction',{}, {title:'正在寫入打卡…',text:'請稍後，完成後會自動更新'});applyLog(r.log);renderAll();navigator.vibrate?.(30);toast(r.action+'完成');if(r.requiresBreak)setTimeout(openBreakChoice,150)}catch(e){}}
+async function clock(){
+  const n=nextAction(state.data.today);
+  if(n==='none')return;
+
+  // 下午本來就是第一個工作時段（例如上午請假）時，也需要啟動 Live。
+  const shouldStartLive=n==='am-in'||(n==='pm-in'&&state.data.today.amStatus==='請假');
+
+  try{
+    const r=await call('clockAction',{}, {title:'正在寫入打卡…',text:'請稍後，完成後會自動更新'});
+    applyLog(r.log);
+    renderAll();
+    navigator.vibrate?.(30);
+    toast(r.action+'完成');
+
+    if(shouldStartLive){
+      launchSalaryLiveShortcut('start');
+    }
+
+    // 下班不再另外開一支捷徑；正在執行的 Live 捷徑每 30 秒會讀到 finished 後自行 Stop。
+    if(r.requiresBreak)setTimeout(openBreakChoice,150);
+  }catch(e){}
+}
 function applyLog(log){if(!log)return;state.data.today=log;const idx=state.data.monthLogs.findIndex(x=>x.date===log.date);if(idx>=0)state.data.monthLogs[idx]=log;else if(log.date.startsWith(state.viewMonth))state.data.monthLogs.push(log);state.data.monthLogs.sort((a,b)=>a.date.localeCompare(b.date));state.monthCache.set(state.viewMonth,state.data.monthLogs.slice());const ridx=state.data.recentLogs.findIndex(x=>x.date===log.date);if(ridx>=0)state.data.recentLogs[ridx]=log;else state.data.recentLogs.unshift(log)}
 
 function openAction(type){if(type==='manual')editForm(null);if(type==='editToday')editForm(state.data.today);if(type==='advance')advanceForm();if(type==='budget')budgetForm();if(type==='leave')editForm(Object.assign({},state.data.today,{dayStatus:'上午請假'}));if(type==='break')editForm(Object.assign({},state.data.today,{dayStatus:'休假'}))}
